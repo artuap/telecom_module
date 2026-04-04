@@ -1,0 +1,78 @@
+#include <iostream>
+#include <pigpio.h>
+#include <cstring>
+#include <vector>
+
+// Definición de Pines (Ajusta según tu conexión física)
+#define CS_PIN    8   // CE0
+#define RESET_PIN 17
+#define DIO0_PIN  25
+
+// Registro básico del SX1276 para ejemplo (Simplificado)
+#define REG_FIFO                    0x00
+#define REG_OP_MODE                 0x01
+#define MODE_LONG_RANGE_MODE        0x80
+#define MODE_TX                     0x03
+#define MODE_STDBY                  0x01
+
+class LoRaModule {
+public:
+    LoRaModule() {
+        if (gpioInitialise() < 0) exit(1);
+        handle = spiOpen(0, 500000, 0); // SPI canal 0, 500kHz
+        gpioSetMode(RESET_PIN, PI_OUTPUT);
+        reset();
+    }
+
+    void reset() {
+        gpioWrite(RESET_PIN, 0);
+        time_sleep(0.01);
+        gpioWrite(RESET_PIN, 1);
+        time_sleep(0.01);
+    }
+
+    void sendBurst(const std::vector<uint8_t>& data) {
+        std::cout << "Enviando ráfaga de " << data.size() << " bytes..." << std::endl;
+        
+        // Configurar en modo Standby para cargar FIFO
+        writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE | MODE_STDBY);
+        
+        // Cargar datos en el búfer SPI (Simplificado para el ejemplo)
+        uint8_t txBuf[data.size() + 1];
+        txBuf[0] = REG_FIFO | 0x80; // Modo escritura
+        std::memcpy(&txBuf[1], data.data(), data.size());
+        
+        spiWrite(handle, (char*)txBuf, sizeof(txBuf));
+        
+        // Cambiar a modo Transmisión
+        writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE | MODE_TX);
+    }
+
+    void writeRegister(uint8_t reg, uint8_t val) {
+        char buf[2] = {(char)(reg | 0x80), (char)val};
+        spiWrite(handle, buf, 2);
+    }
+
+private:
+    int handle;
+};
+
+int main() {
+    LoRaModule lora;
+    
+    // Simulación de ráfaga: ID de sensor + Datos (ej. flotantes convertidos a bytes)
+    std::vector<uint8_t> rafaga = {0x01, 0xAA, 0xBB, 0xCC, 0xDD};
+
+    while (true) {
+        lora.sendBurst(rafaga);
+        
+        // En un escenario real, aquí usarías gpioSetAlertFunc 
+        // en el DIO0_PIN para detectar cuándo terminó de enviar
+        
+        std::cout << "Esperando 5 segundos para la próxima ráfaga..." << std::endl;
+        time_sleep(5);
+    }
+
+    gpioTerminate();
+    return 0;
+}
