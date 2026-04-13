@@ -1,14 +1,14 @@
 # Gateway
 #include <iostream>
 #include <vector>
-#include <nlohmann/json.hpp> // Librería JSON
+#include <nlohmann/json.hpp> //  JSON Library 
 #include <mqtt/async_client.h> // Paho MQTT
 
 using json = nlohmann::json;
 
-const std::string ADDRESS("tcp://localhost:1883"); // Tu broker MQTT (ej. Mosquitto)
+const std::string ADDRESS("tcp://localhost:1883"); // Your broker MQTT (eg. Mosquitto)
 const std::string CLIENT_ID("LoRa_Gateway");
-const std::string TOPIC("sensores/clima/miuva");
+const std::string TOPIC("sensores/Weather/miuva");
 
 void publicar_mqtt(const std::string& payload) {
     mqtt::async_client client(ADDRESS, CLIENT_ID);
@@ -21,21 +21,21 @@ void publicar_mqtt(const std::string& payload) {
         msg->set_qos(1);
         client.publish(msg)->wait();
         client.disconnect()->wait();
-        std::cout << "JSON enviado a MQTT con éxito." << std::endl;
+        std::cout << "JSON  Succes Sended a MQTT." << std::endl;
     } catch (const mqtt::exception& exc) {
-        std::cerr << "Error en MQTT: " << exc.what() << std::endl;
+        std::cerr << " MQTT  Error: " << exc.what() << std::endl;
     }
 }
 
-// Función para procesar la ráfaga LoRa recibida
+// Function for received LoRa burst.
 void procesar_rafaga_lora(std::vector<uint8_t> raw_data, int rssi) {
-    // Supongamos que los datos vienen en orden: temp, hum, pres (floats)
+    // Guess that data are comming in order: temp, hum, pres (floats)
     float t, h, p;
     std::memcpy(&t, &raw_data[0], 4);
     std::memcpy(&h, &raw_data[4], 4);
     std::memcpy(&p, &raw_data[8], 4);
 
-    // Crear objeto JSON
+    // Create JSON Objet.
     json j;
     j["device_id"] = "miuva_node_01";
     j["rssi"] = rssi;
